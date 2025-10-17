@@ -1,10 +1,13 @@
-import { View, Text, Image, ScrollView } from "react-native";
+import { View, Text, Image, ScrollView, TouchableOpacity, Alert } from "react-native";
 import { useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { FontAwesome } from '@expo/vector-icons';
 
 export default function DetalhePokemon() {
   const { name } = useLocalSearchParams<{ name: string }>();
   const [details, setDetails] = useState<any>(null);
+  const [isFavorite, setIsFavorite] = useState(false);
 
   useEffect(() => {
     if (!name) return;
@@ -14,6 +17,44 @@ export default function DetalhePokemon() {
       .catch(console.error);
   }, [name]);
 
+  useEffect(() => {
+    if (details) checkFavorite();
+  }, [details]);
+
+  
+  const checkFavorite = async () => {
+    try {
+      const favorites = await AsyncStorage.getItem("favorites");
+      const parsed = favorites ? JSON.parse(favorites) : [];
+      setIsFavorite(parsed.some((p: any) => p.id === details.id));
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  // Adiciona ou remove dos favoritos
+  const toggleFavorite = async () => {
+    try {
+      const favorites = await AsyncStorage.getItem("favorites");
+      let parsed = favorites ? JSON.parse(favorites) : [];
+
+      if (isFavorite) {
+        // remove
+        parsed = parsed.filter((p: any) => p.id !== details.id);
+        await AsyncStorage.setItem("favorites", JSON.stringify(parsed));
+        setIsFavorite(false);
+        Alert.alert("Removido dos favoritos!");
+      } else {
+        // adiciona
+        parsed.push({ id: details.id, name: details.name });
+        await AsyncStorage.setItem("favorites", JSON.stringify(parsed));
+        setIsFavorite(true);
+        Alert.alert("Adicionado aos favoritos!");
+      }
+    } catch (error) {
+      console.error(error);
+    }
+  };
 
   if (!details) {
     return (
@@ -25,7 +66,7 @@ export default function DetalhePokemon() {
 
   return (
     <ScrollView className="flex-1 bg-background-light p-4">
-      {/* Imagem e tipos */}
+      
       <View className="items-center mb-4">
         <Image
           source={{
@@ -41,7 +82,8 @@ export default function DetalhePokemon() {
           {details.name}
         </Text>
 
-        <View className="flex-row mb-4">
+
+        <View className="flex-row mb-4 mt-4">
           {details.types.map((t: any, idx: number) => (
             <View
               key={idx}
@@ -60,7 +102,17 @@ export default function DetalhePokemon() {
             </View>
           ))}
         </View>
+        
+        <TouchableOpacity
+          onPress={toggleFavorite}
+          className={`px-4 py-2 rounded-full ${isFavorite ? 'bg-yellow-400' : 'bg-gray-300'}`}
+        >
+          <Text className="font-semibold text-white">
+            <FontAwesome name="star" size={16} color="white" /> {isFavorite ? "Remover dos Favoritos" : "Adicionar aos Favoritos"}
+          </Text>
+        </TouchableOpacity>
       </View>
+
 
       {/* Status Base */}
       <View className="w-full mb-4">
@@ -94,7 +146,6 @@ export default function DetalhePokemon() {
         ))}
       </View>
 
-
       <View className="items-center">
         <Text className="text-gray-600">
           Altura: {details.height / 10} m | Peso: {details.weight / 10} kg
@@ -106,5 +157,5 @@ export default function DetalhePokemon() {
 
 export const options = {
   headerShown: false,
-  tabBarStyle: {display: 'none'}
+  tabBarStyle: { display: "none" },
 };

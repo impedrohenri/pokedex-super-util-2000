@@ -35,7 +35,7 @@ export default function PokedexScreen() {
   }, [offset]);
 
   return (
-    <View className="flex-1 bg-background-light px-3 pt-6">
+    <View className="flex-1 bg-gray-200 px-3 pt-6">
       {loading ? (
         <View className="flex-1 justify-center items-center">
           <ActivityIndicator size="large" color="#2F80ED" />

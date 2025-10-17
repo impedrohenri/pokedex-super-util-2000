@@ -1,3 +1,4 @@
+import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import { TouchableOpacity, Image, View, Text, Modal, ActivityIndicator, ScrollView } from "react-native";
 
@@ -12,6 +13,7 @@ export function PokemonCard({ name, id }: PokemonCardProps) {
   const [modalVisible, setModalVisible] = useState(false);
   const [details, setDetails] = useState<any>(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
+  const router = useRouter();
 
   useEffect(() => {
     fetch(`https://pokeapi.co/api/v2/pokemon/${id}`)
@@ -43,11 +45,12 @@ export function PokemonCard({ name, id }: PokemonCardProps) {
 
   return (
     <>
-      {/* CARD */}
-      <TouchableOpacity
-        className="flex-1 bg-white rounded-2xl p-3 m-1.5 shadow shadow-gray-300 items-center justify-center"
+      
+      <View className="flex-1 bg-white rounded-2xl p-3 m-1.5 shadow shadow-gray-300 items-center justify-center">
+        <TouchableOpacity
         onPress={openModal}
         activeOpacity={0.85}
+        className="flex items-center justify-center"
       >
         <Image
           source={{ uri: image ?? undefined }}
@@ -59,6 +62,21 @@ export function PokemonCard({ name, id }: PokemonCardProps) {
           {name}
         </Text>
       </TouchableOpacity>
+
+      
+        <TouchableOpacity
+          onPress={() => {
+            router.push({
+            pathname: "/(tabs)/Detalhes/[name]",
+            params: { name: name },
+            })
+          }}
+          className={`mt-4 px-3 py-1 rounded-lg text-sm`}
+          style={{backgroundColor: "#ecc972"}}
+        >
+            <Text className="text-white font-semibold">Ver detalhes</Text>
+        </TouchableOpacity>
+      </View>
 
 
 

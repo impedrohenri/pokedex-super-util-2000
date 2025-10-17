@@ -23,7 +23,7 @@ export default function RootLayout() {
       <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
 
         <View className='bg-red-600 pt-4'>
-          <Text className="text-2xl font-bold text-white mb-2 ms-4 mt-4">Pokédex1</Text>
+          <Text className="text-2xl font-bold text-white mb-2 ms-4 mt-4">Pokédex</Text>
           <SearchBar />
         </View>
 
