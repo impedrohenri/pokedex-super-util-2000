@@ -1,4 +1,5 @@
 import { PokemonCard } from "@/components/PokemonCard";
+import SearchBar from "@/components/SearchBar";
 import { Pokemon } from "@/types/PokemonCard";
 import { useEffect, useState } from "react";
 import { View, Text, FlatList, ActivityIndicator, TouchableOpacity,} from "react-native";
@@ -35,8 +36,6 @@ export default function PokedexScreen() {
 
   return (
     <View className="flex-1 bg-background-light px-3 pt-6">
-      <Text className="text-2xl font-bold text-primary mb-4 ms-4"> Pokédex</Text>
-
       {loading ? (
         <View className="flex-1 justify-center items-center">
           <ActivityIndicator size="large" color="#2F80ED" />

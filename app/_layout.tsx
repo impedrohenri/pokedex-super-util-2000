@@ -7,6 +7,8 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 
 import { GluestackUIProvider } from '@/components/ui/gluestack-ui-provider';
 import '@/global.css';
+import { Text, View } from 'react-native';
+import SearchBar from '@/components/SearchBar';
 
 export const unstable_settings = {
   anchor: '(tabs)',
@@ -19,6 +21,12 @@ export default function RootLayout() {
     
     <GluestackUIProvider mode="dark">
       <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+
+        <View className='bg-red-600 pt-4'>
+          <Text className="text-2xl font-bold text-white mb-2 ms-4 mt-4">Pokédex1</Text>
+          <SearchBar />
+        </View>
+
       <Stack>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
