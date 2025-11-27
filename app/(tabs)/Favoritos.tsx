@@ -1,9 +1,10 @@
 import { View, Text, FlatList, ActivityIndicator } from "react-native";
-import { useEffect, useState } from "react";
+import { useState,useCallback } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { PokemonCard } from "@/components/PokemonCard";
 import { Pokemon } from "@/types/PokemonCard";
 
+import { useFocusEffect } from "expo-router";
 export default function FavoritosScreen() {
   const [pokemons, setPokemons] = useState<Pokemon[]>([]);
   const [loading, setLoading] = useState(true);
@@ -24,10 +25,12 @@ export default function FavoritosScreen() {
     }
   };
 
-  useEffect(() => {
-    const unsubscribe = loadFavorites();
-    // Se quiser recarregar sempre que a tela ficar ativa, podemos usar focus listener
-  }, []);
+ //Toda vez que a tela ganhar foco → recarrega
+  useFocusEffect(
+    useCallback(() => {
+      loadFavorites();
+    }, [])
+  );
 
   if (loading) {
     return (

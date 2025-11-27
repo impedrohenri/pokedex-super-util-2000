@@ -2,27 +2,48 @@ import { PokemonCard } from "@/components/PokemonCard";
 import SearchBar from "@/components/SearchBar";
 import { Pokemon } from "@/types/PokemonCard";
 import { useEffect, useState } from "react";
-import { View, Text, FlatList, ActivityIndicator, TouchableOpacity,} from "react-native";
-
+import { View, Text, FlatList, ActivityIndicator, TouchableOpacity, } from "react-native";
+import { getFromCache, saveToCache } from "../utils/cache";
 export default function PokedexScreen() {
   const [pokemons, setPokemons] = useState<Pokemon[]>([]);
   const [offset, setOffset] = useState(0);
   const [loading, setLoading] = useState(false);
 
-  const fetchPokemons = () => {
+  const fetchPokemons = async () => {
     setLoading(true);
 
+    const key = `pokemon-list-${offset}`;// chave única por página, a chave ficará lá dentro do map no cache.ts
+
     try {
+      //tenta pegar do cache primeiro
+      const cached = await getFromCache(key);
+
+      if (cached) {
+        console.log("Dados vindos do cache");
+        setPokemons(cached);
+
+        // atualiza em background (não atrapalha o usuário)
+        fetch(`https://pokeapi.co/api/v2/pokemon?limit=20&offset=${offset}`)
+          .then((res) => res.json())
+          .then((data) => saveToCache(key, data.results));
+
+        setLoading(false);
+        return; // evita o fetch principal
+      }
+      //fetch principal
       fetch(`https://pokeapi.co/api/v2/pokemon?limit=20&offset=${offset}`)
         .then((res) => res.json())
-        .then((data) => {
+        .then( async(data) => {
+          console.log("Dados vindos da API")
           setPokemons(data.results);
+        // salva no cache agora
+        await saveToCache(key, data.results);
         })
         .catch((error) => console.error("Erro ao buscar pokémons:", error))
         .finally(() => {
-            setLoading(false);
-            console.log(pokemons)
-            
+          setLoading(false);
+          console.log(pokemons)
+
         });
     } catch (error) {
       console.error("Erro ao buscar pokémons:", error);
@@ -56,11 +77,10 @@ export default function PokedexScreen() {
             <TouchableOpacity
               disabled={offset === 0 || loading}
               onPress={() => setOffset((prev) => Math.max(prev - 20, 0))}
-              className={`px-4 py-2 rounded-xl ${
-                offset === 0 || loading
-                  ? "bg-red-300"
-                  : "bg-red-600"
-              }`}
+              className={`px-4 py-2 rounded-xl ${offset === 0 || loading
+                ? "bg-red-300"
+                : "bg-red-600"
+                }`}
             >
               <Text
                 className={`font-bold text-white`}
@@ -72,9 +92,8 @@ export default function PokedexScreen() {
             <TouchableOpacity
               disabled={loading}
               onPress={() => setOffset((prev) => prev + 20)}
-              className={`px-4 py-2 rounded-xl ${
-                loading ? "bg-red-300" : "bg-red-600"
-              }`}
+              className={`px-4 py-2 rounded-xl ${loading ? "bg-red-300" : "bg-red-600"
+                }`}
             >
               <Text
                 className={`font-bold text-white`}
