@@ -1,6 +1,7 @@
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import { TouchableOpacity, Image, View, Text, Modal, ActivityIndicator, ScrollView } from "react-native";
+import { getFromCache, saveToCache } from "../app/utils/cache";
 
 type PokemonCardProps = {
   name: string;
@@ -16,16 +17,46 @@ export function PokemonCard({ name, id }: PokemonCardProps) {
   const router = useRouter();
 
   useEffect(() => {
+
+    const key = `pokemon-image-${id}`;
+        const loadImage = async () => {
+      setLoading(true);
+
+     
+      const cached = await getFromCache(key);
+
+      if (cached) {
+        console.log("Imagem do cache:", id);
+        setImage(cached);
+
+        
+        fetch(`https://pokeapi.co/api/v2/pokemon/${id}`)
+          .then((r) => r.json())
+          .then((data) => {
+            const sprite =
+              data.sprites.other["official-artwork"].front_default ||
+              data.sprites.front_default;
+            saveToCache(key, sprite);
+          });
+
+        setLoading(false);
+        return;
+      }
+    
     fetch(`https://pokeapi.co/api/v2/pokemon/${id}`)
       .then((res) => res.json())
-      .then((data) => {
+      .then(async(data) => {
         const sprite =
           data.sprites.other["official-artwork"].front_default ||
           data.sprites.front_default;
+        console.log("Imagem da API:", id);
         setImage(sprite);
+        await saveToCache(key, sprite);
       })
       .catch((err) => console.error("Erro ao carregar imagem:", err))
       .finally(() => setLoading(false));
+    }
+    loadImage()
   }, [id]);
 
   const openModal = async () => {

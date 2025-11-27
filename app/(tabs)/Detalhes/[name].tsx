@@ -4,6 +4,9 @@ import { useEffect, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { FontAwesome } from '@expo/vector-icons';
 
+import { getFromCache, saveToCache } from "../../utils/cache";
+
+
 export default function DetalhePokemon() {
   const { name } = useLocalSearchParams<{ name: string }>();
   const [details, setDetails] = useState<any>(null);
@@ -11,17 +14,43 @@ export default function DetalhePokemon() {
 
   useEffect(() => {
     if (!name) return;
+    const key = `pokemon-details-${name}`;
+
+    const loadDetails = async () => {
+
+      const cached = await getFromCache(key);
+
+      if (cached) {
+        console.log("Detalhes do cache");
+        setDetails(cached);
+
+        
+        fetch(`https://pokeapi.co/api/v2/pokemon/${name}`)
+          .then(res => res.json())
+          .then((data) => saveToCache(key, data));
+
+        return; 
+      }
+    
+
+
     fetch(`https://pokeapi.co/api/v2/pokemon/${name}`)
       .then(res => res.json())
-      .then(setDetails)
+      .then(async (data) => {
+        console.log("Detalhes da API");
+        setDetails(data);
+        await saveToCache(key, data);
+      })
       .catch(console.error);
+    }
+    loadDetails();
   }, [name]);
 
   useEffect(() => {
     if (details) checkFavorite();
   }, [details]);
 
-  
+
   const checkFavorite = async () => {
     try {
       const favorites = await AsyncStorage.getItem("favorites");
@@ -66,7 +95,7 @@ export default function DetalhePokemon() {
 
   return (
     <ScrollView className="flex-1 bg-background-light p-4">
-      
+
       <View className="items-center mb-4">
         <Image
           source={{
@@ -88,12 +117,12 @@ export default function DetalhePokemon() {
             <View
               key={idx}
               className={`px-3 py-1 mx-1 rounded-full ${t.type.name === "grass"
-                  ? "bg-green-300"
-                  : t.type.name === "fire"
-                    ? "bg-red-300"
-                    : t.type.name === "water"
-                      ? "bg-blue-300"
-                      : "bg-gray-300"
+                ? "bg-green-300"
+                : t.type.name === "fire"
+                  ? "bg-red-300"
+                  : t.type.name === "water"
+                    ? "bg-blue-300"
+                    : "bg-gray-300"
                 }`}
             >
               <Text className="capitalize text-sm font-semibold text-white">
@@ -102,7 +131,7 @@ export default function DetalhePokemon() {
             </View>
           ))}
         </View>
-        
+
         <TouchableOpacity
           onPress={toggleFavorite}
           className={`px-4 py-2 rounded-full ${isFavorite ? 'bg-yellow-400' : 'bg-gray-300'}`}
@@ -132,12 +161,12 @@ export default function DetalhePokemon() {
             <View className="w-full bg-gray-200 rounded-full h-2 mt-1">
               <View
                 className={`h-2 rounded-full ${stat.stat.name === "hp"
-                    ? "bg-green-500"
-                    : stat.stat.name === "attack"
-                      ? "bg-red-500"
-                      : stat.stat.name === "defense"
-                        ? "bg-yellow-500"
-                        : "bg-blue-500"
+                  ? "bg-green-500"
+                  : stat.stat.name === "attack"
+                    ? "bg-red-500"
+                    : stat.stat.name === "defense"
+                      ? "bg-yellow-500"
+                      : "bg-blue-500"
                   }`}
                 style={{ width: `${stat.base_stat}%` }}
               />
