@@ -1,10 +1,10 @@
 import { PokemonCard } from "@/components/PokemonCard";
 import SearchBar from "@/components/SearchBar";
 import { Pokemon } from "@/types/PokemonCard";
-import { useEffect, useState, useRef } from "react"; 
+import { useEffect, useState, useRef } from "react";
 import { View, Text, FlatList, ActivityIndicator, TouchableOpacity, Button, Image } from "react-native";
 import { getFromCache, saveToCache } from "../utils/cache";
-import { robustFetch, NetworkError } from "../utils/robustFetch"; 
+import { robustFetch, NetworkError } from "../utils/robustFetch";
 import NetInfo from "@react-native-community/netinfo";
 import { IMAGE_URL } from "@/api/index.routes";
 // Interface para o objeto de erro
@@ -25,8 +25,8 @@ export default function PokedexScreen() {
   // Ref para o AbortController para cancelamento na desmontagem ou nova busca (debounce)
   const abortControllerRef = useRef<AbortController | null>(null);
 
-  const getImageUrl = (pokemon: any) => {
-    const id = pokemon.url.split("/").filter(Boolean).pop();
+  const getImageUrl = (pokemon: Pokemon) => {
+    const id = pokemon.url?.split("/").filter(Boolean).pop();
     return `${IMAGE_URL}/${id}.png`;
   };
 
@@ -52,7 +52,7 @@ export default function PokedexScreen() {
       abortControllerRef.current.abort("New request initiated (debounce/offset change)");
       abortControllerRef.current = null;
     }
-    
+
     // Cria um novo controller para esta nova requisição
     const controller = new AbortController();
     abortControllerRef.current = controller;
@@ -80,7 +80,7 @@ export default function PokedexScreen() {
             console.log("Cache atualizado em background.");
           })
           .catch((error) => {
-            if (!(error instanceof DOMException && error.name === 'AbortError')) {
+            if ((error.name === 'AbortError')) {
               console.error("Erro ao atualizar o cache em background:", error);
             }
           });
@@ -103,7 +103,7 @@ export default function PokedexScreen() {
       // Tratamento de erros com UI de “tentar novamente”
       console.error("Erro ao buscar pokémons:", error);
 
-      if (error instanceof DOMException && error.name === 'AbortError') {
+      if (error.name === 'AbortError') {
         // Requisição cancelada intencionalmente (p.ex., nova busca de debounce ou unmount). Não mostrar erro na tela.
         return;
       }
@@ -111,7 +111,9 @@ export default function PokedexScreen() {
       // Define o erro para exibição
       setFetchError({
         message: error.message || "Ocorreu um erro desconhecido ao carregar os dados.",
-        isNetwork: error instanceof NetworkError || error.message.includes('Failed to fetch'),
+        isNetwork: error instanceof NetworkError ||
+          (typeof error?.message === "string" &&
+            error.message.includes("Failed to fetch")),
         canRetry: true, // Quase sempre deve ter retry para erros de rede/timeout/5xx
       });
 
@@ -193,16 +195,9 @@ export default function PokedexScreen() {
   if (fetchError && pokemons.length === 0) {
     // Exibe o erro de tela cheia se a lista estiver vazia
     return (
-      <View className="flex-1 bg-gray-200 px-3 pt-6">
-        {isOffline && (
-          <View className="absolute top-0 left-0 right-0 p-1 z-10 bg-black items-center">
-            <Text className="text-white text-xs font-bold">
-              🚫 MODO OFFLINE: Usando dados em cache.
-            </Text>
-          </View>
-        )}
+      
         <ErrorView />
-      </View>
+    
     );
   }
 
@@ -220,26 +215,35 @@ export default function PokedexScreen() {
       <FlatList
         data={pokemons}
         numColumns={2}
-        keyExtractor={(item) => item.url?.split("/").filter(Boolean).pop() || item.name}
+        extraData={{ loading, fetchError }} // FORÇA re-render do footer
+        keyExtractor={(item) =>
+          item.url?.split("/").filter(Boolean).pop() || item.name
+        }
+
         renderItem={({ item }) => {
           const id = item?.url?.split("/").filter(Boolean).pop();
           return <PokemonCard name={item.name} id={id || ''} />;
         }}
+
         onEndReached={() => {
-          if (!loading && !fetchError) { // evita chamadas múltiplas enquanto carrega OU se houver um erro pendente
-            setOffset((prev) => prev + 20)
+          if (!loading && !fetchError) {
+            setOffset((prev) => prev + 20);
           }
         }}
+
         onEndReachedThreshold={0.2}
-        ListFooterComponent={
-          /* o loader de rodapé aparece quando está carregando, mas já tem itens na lista */
-          loading && pokemons.length > 0 ? (
-            <View className="my-4 items-center">
-              <ActivityIndicator size="large" color="#2F80ED" />
-            </View>
-          ) : (
-            // Se houver erro E a lista não estiver vazia, mostra a UI de erro no rodapé (para não apagar os itens já carregados)
-            fetchError && pokemons.length > 0 ? (
+
+        ListFooterComponent={() => {   
+          if (loading && pokemons.length > 0) {
+            return (
+              <View className="my-4 items-center">
+                <ActivityIndicator size="large" color="#2F80ED" />
+              </View>
+            );
+          }
+
+          if (fetchError && pokemons.length > 0) {
+            return (
               <View className="my-4 p-4 items-center border border-red-300 rounded-lg mx-2">
                 <Text className="text-sm font-bold text-red-600 mb-2">
                   Falha ao carregar mais Pokémons.
@@ -253,9 +257,11 @@ export default function PokedexScreen() {
                   </Text>
                 </TouchableOpacity>
               </View>
-            ) : null
-          )
-        }
+            );
+          }
+
+          return null;
+        }}
       />
     </View>
   );

@@ -1,4 +1,3 @@
-// api/robustFetch.ts
 import { API_URL } from "@/api/index.routes";
 
 export class NetworkError extends Error {
@@ -29,16 +28,31 @@ function combineSignals(signals: AbortSignal[]): AbortSignal {
 }
 
 
- //Fallback universal de timeout usando Promise.race
+//Fallback universal de timeout usando Promise.race
 
-function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
-    return Promise.race([
-        promise,
-        new Promise<T>((_, reject) =>
-            setTimeout(() => reject(new NetworkError(`Timeout após ${ms}ms`, 408)), ms)
-        )
-    ]);
+function withTimeout<T>(
+    promise: Promise<T>,
+    ms: number,
+    controller: AbortController
+): Promise<T> {
+    return new Promise<T>((resolve, reject) => {
+        const timeoutId = setTimeout(() => {
+            controller.abort(); //  aborta o fetch REAL
+            reject(new NetworkError(`Timeout após ${ms}ms`, 408));
+        }, ms);
+
+        promise
+            .then((res) => {
+                clearTimeout(timeoutId);
+                resolve(res);
+            })
+            .catch((err) => {
+                clearTimeout(timeoutId);
+                reject(err);
+            });
+    });
 }
+
 
 export async function robustFetch<T>(
     endpoint: string,
@@ -57,11 +71,11 @@ export async function robustFetch<T>(
             : localController.signal;
 
         try {
-           
+
 
             const fetchPromise = fetch(URL, { signal });
 
-            const response = await withTimeout(fetchPromise, TIMEOUT_MS);
+            const response = await withTimeout(fetchPromise, TIMEOUT_MS, localController);
 
             if (!response.ok) {
                 // Retry APENAS para 5xx
