@@ -8,12 +8,13 @@ import { API_URL } from "@/api/index.routes"
 //biblioteca para detecta estado de conexão
 import NetInfo from "@react-native-community/netinfo";
 
+
 export default function PokedexScreen() {
   const [pokemons, setPokemons] = useState<Pokemon[]>([]);
   const [offset, setOffset] = useState(0);
   const [loading, setLoading] = useState(false);
 
-  
+
   const [isOffline, setIsOffline] = useState(false);
 
   const fetchPokemons = async () => {
@@ -27,7 +28,9 @@ export default function PokedexScreen() {
 
       if (cached) {
         console.log("Dados vindos do cache");
-        setPokemons(cached);
+        setPokemons((prev) =>
+          offset === 0 ? cached : [...prev, ...cached]
+        );
 
         // atualiza em background (não atrapalha o usuário)
         fetch(`${API_URL}/pokemon?limit=20&offset=${offset}`)
@@ -42,7 +45,9 @@ export default function PokedexScreen() {
         .then((res) => res.json())
         .then(async (data) => {
           console.log("Dados vindos da API")
-          setPokemons((prev) => [...prev, ...data.results]);
+          setPokemons((prev) =>
+            offset === 0 ? data.results : [...prev, ...data.results]
+          );
           // salva no cache agora
           await saveToCache(key, data.results);
         })
@@ -58,10 +63,6 @@ export default function PokedexScreen() {
     }
   };
 
-  useEffect(() => {
-    fetchPokemons();
-  }, [offset]);
-
   //useEffect para monitorar o NetInfo
   useEffect(() => {
     const unsubscribe = NetInfo.addEventListener((state) => {
@@ -71,17 +72,12 @@ export default function PokedexScreen() {
     return () => unsubscribe();
   }, []); // Roda apenas uma vez na montagem
 
-  //useEffect para reagir a mudança de rede
+  //useEffect para paginação e reagir a mudança de rede
   useEffect(() => {
-    // Dispara uma nova busca sempre que a rede mudar, usando o novo estado 'isOffline'
-    console.log(`Estado da Rede alterado. isOffline: ${isOffline}`);
     fetchPokemons();
-  }, [isOffline]); // Roda sempre que o estado de rede muda
+  }, [offset, isOffline]); // Roda sempre que o estado de rede muda
 
-  // useEffect existente para paginação
-  useEffect(() => {
-    fetchPokemons();
-  }, [offset]);
+
 
   return (
     <View className="flex-1 bg-gray-200 px-3 pt-6">
@@ -93,7 +89,8 @@ export default function PokedexScreen() {
           </Text>
         </View>
       )}
-      {loading ? (
+      {/* mostra o loader de tela cheia SOMENTE se loading for true E a lista estiver VAZIA */}
+      {loading && pokemons.length === 0 ? (
         <View className="flex-1 justify-center items-center">
           <ActivityIndicator size="large" color="#2F80ED" />
         </View>
@@ -107,10 +104,15 @@ export default function PokedexScreen() {
               const id = item?.url?.split("/").filter(Boolean).pop();
               return <PokemonCard name={item.name} id={id || ''} />;
             }}
-            onEndReached={() => setOffset((prev) => prev + 20)}
+            onEndReached={() => {
+              if (!loading) { // evita chamadas múltiplas enquanto carrega
+                setOffset((prev) => prev + 20)
+              }
+            }}
             onEndReachedThreshold={0.2}
             ListFooterComponent={
-              loading ? (
+              /* o loader de rodapé aparece quando está carregando, mas já tem itens na lista */
+              loading && pokemons.length > 0 ? (
                 <View className="my-4 items-center">
                   <ActivityIndicator size="large" color="#2F80ED" />
                 </View>
