@@ -4,10 +4,16 @@ import { Pokemon } from "@/types/PokemonCard";
 import { useEffect, useState } from "react";
 import { View, Text, FlatList, ActivityIndicator, TouchableOpacity, } from "react-native";
 import { getFromCache, saveToCache } from "../utils/cache";
+//biblioteca para detecta estado de conexão
+import NetInfo from "@react-native-community/netinfo";
+
 export default function PokedexScreen() {
   const [pokemons, setPokemons] = useState<Pokemon[]>([]);
   const [offset, setOffset] = useState(0);
   const [loading, setLoading] = useState(false);
+
+  
+  const [isOffline, setIsOffline] = useState(false);
 
   const fetchPokemons = async () => {
     setLoading(true);
@@ -33,11 +39,11 @@ export default function PokedexScreen() {
       //fetch principal
       fetch(`https://pokeapi.co/api/v2/pokemon?limit=20&offset=${offset}`)
         .then((res) => res.json())
-        .then( async(data) => {
+        .then(async (data) => {
           console.log("Dados vindos da API")
           setPokemons(data.results);
-        // salva no cache agora
-        await saveToCache(key, data.results);
+          // salva no cache agora
+          await saveToCache(key, data.results);
         })
         .catch((error) => console.error("Erro ao buscar pokémons:", error))
         .finally(() => {
@@ -55,8 +61,37 @@ export default function PokedexScreen() {
     fetchPokemons();
   }, [offset]);
 
+  //useEffect para monitorar o NetInfo
+  useEffect(() => {
+    const unsubscribe = NetInfo.addEventListener((state) => {
+      setIsOffline(!state.isConnected);
+    });
+
+    return () => unsubscribe();
+  }, []); // Roda apenas uma vez na montagem
+
+  //useEffect para reagir a mudança de rede
+  useEffect(() => {
+    // Dispara uma nova busca sempre que a rede mudar, usando o novo estado 'isOffline'
+    console.log(`Estado da Rede alterado. isOffline: ${isOffline}`);
+    fetchPokemons();
+  }, [isOffline]); // Roda sempre que o estado de rede muda
+
+  // useEffect existente para paginação
+  useEffect(() => {
+    fetchPokemons();
+  }, [offset]);
+
   return (
     <View className="flex-1 bg-gray-200 px-3 pt-6">
+      {/* aviso do offline */}
+      {isOffline && (
+        <View className="absolute top-0 left-0 right-0 p-1 z-10 bg-black items-center">
+          <Text className="text-white text-xs font-bold">
+            🚫 MODO OFFLINE: Usando dados em cache.
+          </Text>
+        </View>
+      )}
       {loading ? (
         <View className="flex-1 justify-center items-center">
           <ActivityIndicator size="large" color="#2F80ED" />

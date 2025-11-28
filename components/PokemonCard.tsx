@@ -19,17 +19,17 @@ export function PokemonCard({ name, id }: PokemonCardProps) {
   useEffect(() => {
 
     const key = `pokemon-image-${id}`;
-        const loadImage = async () => {
+    const loadImage = async () => {
       setLoading(true);
 
-     
+
       const cached = await getFromCache(key);
 
       if (cached) {
         console.log("Imagem do cache:", id);
         setImage(cached);
 
-        
+
         fetch(`https://pokeapi.co/api/v2/pokemon/${id}`)
           .then((r) => r.json())
           .then((data) => {
@@ -42,19 +42,19 @@ export function PokemonCard({ name, id }: PokemonCardProps) {
         setLoading(false);
         return;
       }
-    
-    fetch(`https://pokeapi.co/api/v2/pokemon/${id}`)
-      .then((res) => res.json())
-      .then(async(data) => {
-        const sprite =
-          data.sprites.other["official-artwork"].front_default ||
-          data.sprites.front_default;
-        console.log("Imagem da API:", id);
-        setImage(sprite);
-        await saveToCache(key, sprite);
-      })
-      .catch((err) => console.error("Erro ao carregar imagem:", err))
-      .finally(() => setLoading(false));
+
+      fetch(`https://pokeapi.co/api/v2/pokemon/${id}`)
+        .then((res) => res.json())
+        .then(async (data) => {
+          const sprite =
+            data.sprites.other["official-artwork"].front_default ||
+            data.sprites.front_default;
+          console.log("Imagem da API:", id);
+          setImage(sprite);
+          await saveToCache(key, sprite);
+        })
+        .catch((err) => console.error("Erro ao carregar imagem:", err))
+        .finally(() => setLoading(false));
     }
     loadImage()
   }, [id]);
@@ -63,10 +63,29 @@ export function PokemonCard({ name, id }: PokemonCardProps) {
     setModalVisible(true);
     setLoadingDetails(true);
 
+    const key = `pokemon-details-${id}`;
+
     try {
+      // tenta pegar do cache
+      const cached = await getFromCache(key);
+
+      if (cached) {
+        console.log("Detalhes do cache:", id);
+        setDetails(cached);
+
+        // Atualiza em background
+        fetch(`https://pokeapi.co/api/v2/pokemon/${id}`)
+          .then((r) => r.json())
+          .then((data) => saveToCache(key, data));
+
+        setLoadingDetails(false);
+        return;
+      }
+
       const res = await fetch(`https://pokeapi.co/api/v2/pokemon/${id}`);
       const data = await res.json();
       setDetails(data);
+      await saveToCache(key, data);
     } catch (error) {
       console.error("Erro ao buscar detalhes:", error);
     } finally {
@@ -76,36 +95,36 @@ export function PokemonCard({ name, id }: PokemonCardProps) {
 
   return (
     <>
-      
+
       <View className="flex-1 bg-white rounded-2xl p-3 m-1.5 shadow shadow-gray-300 items-center justify-center">
         <TouchableOpacity
-        onPress={openModal}
-        activeOpacity={0.85}
-        className="flex items-center justify-center"
-      >
-        <Image
-          source={{ uri: image ?? undefined }}
-          alt={name}
-          className="w-28 h-28 mb-2"
-          resizeMode="contain"
-        />
-        <Text className="text-base font-semibold text-textdark capitalize">
-          {name}
-        </Text>
-      </TouchableOpacity>
+          onPress={openModal}
+          activeOpacity={0.85}
+          className="flex items-center justify-center"
+        >
+          <Image
+            source={{ uri: image ?? undefined }}
+            alt={name}
+            className="w-28 h-28 mb-2"
+            resizeMode="contain"
+          />
+          <Text className="text-base font-semibold text-textdark capitalize">
+            {name}
+          </Text>
+        </TouchableOpacity>
 
-      
+
         <TouchableOpacity
           onPress={() => {
             router.push({
-            pathname: "/(tabs)/Detalhes/[name]",
-            params: { name: name },
+              pathname: "/(tabs)/Detalhes/[name]",
+              params: { name: name },
             })
           }}
           className={`mt-4 px-3 py-1 rounded-lg text-sm`}
-          style={{backgroundColor: "#ecc972"}}
+          style={{ backgroundColor: "#ecc972" }}
         >
-            <Text className="text-white font-semibold">Ver detalhes</Text>
+          <Text className="text-white font-semibold">Ver detalhes</Text>
         </TouchableOpacity>
       </View>
 
@@ -121,9 +140,9 @@ export function PokemonCard({ name, id }: PokemonCardProps) {
       >
         <View className="flex-1 bg-black/50 justify-center items-center">
           <View className="bg-white rounded-3xl w-[90%] max-h-[85%] p-5 shadow-lg">
-          <TouchableOpacity onPress={() => setModalVisible(false)}>
-            <Text className="text-red-500 font-semibold text-2xl ms-auto">X</Text>
-          </TouchableOpacity>
+            <TouchableOpacity onPress={() => setModalVisible(false)}>
+              <Text className="text-red-500 font-semibold text-2xl ms-auto">X</Text>
+            </TouchableOpacity>
             {loadingDetails ? (
               <View className="flex-1 justify-center items-center">
                 <ActivityIndicator size="large" color="#2F80ED" />
@@ -150,12 +169,12 @@ export function PokemonCard({ name, id }: PokemonCardProps) {
                       <View
                         key={idx}
                         className={`px-3 py-1 mx-1 rounded-full ${t.type.name === "grass"
-                            ? "bg-green-300"
-                            : t.type.name === "fire"
-                              ? "bg-red-300"
-                              : t.type.name === "water"
-                                ? "bg-blue-300"
-                                : "bg-gray-300"
+                          ? "bg-green-300"
+                          : t.type.name === "fire"
+                            ? "bg-red-300"
+                            : t.type.name === "water"
+                              ? "bg-blue-300"
+                              : "bg-gray-300"
                           }`}
                       >
                         <Text className="capitalize text-sm font-semibold text-white drop-shadow">
@@ -183,12 +202,12 @@ export function PokemonCard({ name, id }: PokemonCardProps) {
                         <View className="w-full bg-gray-200 rounded-full h-2 mt-1">
                           <View
                             className={`h-2 rounded-full ${stat.stat.name === "hp"
-                                ? "bg-green-500"
-                                : stat.stat.name === "attack"
-                                  ? "bg-red-500"
-                                  : stat.stat.name === "defense"
-                                    ? "bg-yellow-500"
-                                    : "bg-blue-500"
+                              ? "bg-green-500"
+                              : stat.stat.name === "attack"
+                                ? "bg-red-500"
+                                : stat.stat.name === "defense"
+                                  ? "bg-yellow-500"
+                                  : "bg-blue-500"
                               }`}
                             style={{ width: `${stat.base_stat}%` }}
                           />
