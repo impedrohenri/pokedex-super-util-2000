@@ -5,6 +5,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { FontAwesome } from '@expo/vector-icons';
 
 import { getFromCache, saveToCache } from "../../utils/cache";
+import { API_URL } from "@/api/index.routes";
 
 
 export default function DetalhePokemon() {
@@ -25,7 +26,7 @@ export default function DetalhePokemon() {
         setDetails(cached);
 
         
-        fetch(`https://pokeapi.co/api/v2/pokemon/${name}`)
+        fetch(`${API_URL}/pokemon/${name}`)
           .then(res => res.json())
           .then((data) => saveToCache(key, data));
 
@@ -34,7 +35,7 @@ export default function DetalhePokemon() {
     
 
 
-    fetch(`https://pokeapi.co/api/v2/pokemon/${name}`)
+    fetch(`${API_URL}/pokemon/${name}`)
       .then(res => res.json())
       .then(async (data) => {
         console.log("Detalhes da API");

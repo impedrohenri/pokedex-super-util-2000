@@ -4,6 +4,7 @@ import { Pokemon } from "@/types/PokemonCard";
 import { useEffect, useState } from "react";
 import { View, Text, FlatList, ActivityIndicator, TouchableOpacity, } from "react-native";
 import { getFromCache, saveToCache } from "../utils/cache";
+import { API_URL } from "@/api/index.routes"
 //biblioteca para detecta estado de conexão
 import NetInfo from "@react-native-community/netinfo";
 
@@ -29,7 +30,7 @@ export default function PokedexScreen() {
         setPokemons(cached);
 
         // atualiza em background (não atrapalha o usuário)
-        fetch(`https://pokeapi.co/api/v2/pokemon?limit=20&offset=${offset}`)
+        fetch(`${API_URL}/pokemon?limit=20&offset=${offset}`)
           .then((res) => res.json())
           .then((data) => saveToCache(key, data.results));
 
@@ -37,7 +38,7 @@ export default function PokedexScreen() {
         return; // evita o fetch principal
       }
       //fetch principal
-      fetch(`https://pokeapi.co/api/v2/pokemon?limit=20&offset=${offset}`)
+      fetch(`${API_URL}/pokemon?limit=20&offset=${offset}`)
         .then((res) => res.json())
         .then(async (data) => {
           console.log("Dados vindos da API")
