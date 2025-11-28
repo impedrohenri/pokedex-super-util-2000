@@ -41,7 +41,7 @@ export default function PokedexScreen() {
         .then((res) => res.json())
         .then(async (data) => {
           console.log("Dados vindos da API")
-          setPokemons(data.results);
+          setPokemons((prev) => [...prev, ...data.results]);
           // salva no cache agora
           await saveToCache(key, data.results);
         })
@@ -104,39 +104,18 @@ export default function PokedexScreen() {
             keyExtractor={(item) => item.name}
             renderItem={({ item }) => {
               const id = item?.url?.split("/").filter(Boolean).pop();
-              return <PokemonCard name={item.name} id={id || ""} />;
+              return <PokemonCard name={item.name} id={id || ''} />;
             }}
+            onEndReached={() => setOffset((prev) => prev + 20)}
+            onEndReachedThreshold={0.2}
+            ListFooterComponent={
+              loading ? (
+                <View className="my-4 items-center">
+                  <ActivityIndicator size="large" color="#2F80ED" />
+                </View>
+              ) : null
+            }
           />
-
-          <View className="flex-row justify-between items-center py-4">
-            <TouchableOpacity
-              disabled={offset === 0 || loading}
-              onPress={() => setOffset((prev) => Math.max(prev - 20, 0))}
-              className={`px-4 py-2 rounded-xl ${offset === 0 || loading
-                ? "bg-red-300"
-                : "bg-red-600"
-                }`}
-            >
-              <Text
-                className={`font-bold text-white`}
-              >
-                Anterior
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              disabled={loading}
-              onPress={() => setOffset((prev) => prev + 20)}
-              className={`px-4 py-2 rounded-xl ${loading ? "bg-red-300" : "bg-red-600"
-                }`}
-            >
-              <Text
-                className={`font-bold text-white`}
-              >
-                Próximo
-              </Text>
-            </TouchableOpacity>
-          </View>
         </>
       )}
     </View>
