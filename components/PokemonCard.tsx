@@ -1,93 +1,130 @@
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
-import { TouchableOpacity, Image, View, Text, Modal, ActivityIndicator, ScrollView } from "react-native";
+import {
+  TouchableOpacity,
+  Image,
+  View,
+  Text,
+  Modal,
+  ActivityIndicator,
+  ScrollView,
+} from "react-native";
+
 import { getFromCache, saveToCache } from "../app/utils/cache";
+import { robustFetch, NetworkError } from "../app/utils/robustFetch";
 
 type PokemonCardProps = {
   name: string;
   id: string;
 };
 
+const POKEAPI_ENDPOINT = "/pokemon/";
+
 export function PokemonCard({ name, id }: PokemonCardProps) {
   const [image, setImage] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [imageError, setImageError] = useState(false);
+
   const [modalVisible, setModalVisible] = useState(false);
   const [details, setDetails] = useState<any>(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
+  const [detailsError, setDetailsError] = useState<string | null>(null);
+
   const router = useRouter();
 
-  useEffect(() => {
+  
+  const loadImage = async (allowCache = true) => {
+    setLoading(true);
+    setImageError(false);
+
+    const controller = new AbortController();
+    const signal = controller.signal;
 
     const key = `pokemon-image-${id}`;
-    const loadImage = async () => {
-      setLoading(true);
+    const endpoint = `${POKEAPI_ENDPOINT}${id}`;
 
+    try {
+      // Tenta pelo cache
+      if (allowCache) {
+        const cached = await getFromCache(key);
+        if (cached) {
+          setImage(cached);
+          setLoading(false);
 
-      const cached = await getFromCache(key);
+          // Atualiza o cache em segundo plano
+          robustFetch<any>(endpoint)
+            .then((data) => {
+              const sprite =
+                data.sprites?.other?.["official-artwork"]?.front_default ||
+                data.sprites?.front_default;
 
-      if (cached) {
-        console.log("Imagem do cache:", id);
-        setImage(cached);
+              if (sprite) saveToCache(key, sprite);
+            })
+            .catch(() => {});
 
-
-        fetch(`https://pokeapi.co/api/v2/pokemon/${id}`)
-          .then((r) => r.json())
-          .then((data) => {
-            const sprite =
-              data.sprites.other["official-artwork"].front_default ||
-              data.sprites.front_default;
-            saveToCache(key, sprite);
-          });
-
-        setLoading(false);
-        return;
+          return;
+        }
       }
 
-      fetch(`https://pokeapi.co/api/v2/pokemon/${id}`)
-        .then((res) => res.json())
-        .then(async (data) => {
-          const sprite =
-            data.sprites.other["official-artwork"].front_default ||
-            data.sprites.front_default;
-          console.log("Imagem da API:", id);
-          setImage(sprite);
-          await saveToCache(key, sprite);
-        })
-        .catch((err) => console.error("Erro ao carregar imagem:", err))
-        .finally(() => setLoading(false));
+      // Fetch principal
+      const data = await robustFetch<any>(endpoint, signal);
+
+      const sprite =
+        data.sprites?.other?.["official-artwork"]?.front_default ||
+        data.sprites?.front_default;
+
+      if (!sprite) throw new Error("Sprite não encontrada");
+
+      setImage(sprite);
+      await saveToCache(key, sprite);
+    } catch (error) {
+      console.error("Erro ao carregar imagem:", error);
+      setImageError(true);
+    } finally {
+      setLoading(false);
     }
-    loadImage()
+  };
+
+  // Retry do botão
+  const retryLoadImage = () => loadImage(false);
+
+  // Carrega ao montar
+  useEffect(() => {
+    loadImage();
   }, [id]);
 
+  
   const openModal = async () => {
     setModalVisible(true);
     setLoadingDetails(true);
+    setDetailsError(null);
 
     const key = `pokemon-details-${id}`;
+    const endpoint = `${POKEAPI_ENDPOINT}${id}`;
 
     try {
-      // tenta pegar do cache
+      // Cache
       const cached = await getFromCache(key);
-
       if (cached) {
-        console.log("Detalhes do cache:", id);
         setDetails(cached);
 
-        // Atualiza em background
-        fetch(`https://pokeapi.co/api/v2/pokemon/${id}`)
-          .then((r) => r.json())
-          .then((data) => saveToCache(key, data));
+        // Atualiza em segundo plano
+        robustFetch<any>(endpoint).then((data) => saveToCache(key, data));
 
         setLoadingDetails(false);
         return;
       }
 
-      const res = await fetch(`https://pokeapi.co/api/v2/pokemon/${id}`);
-      const data = await res.json();
+      // Fetch principal
+      const data = await robustFetch<any>(endpoint);
       setDetails(data);
       await saveToCache(key, data);
     } catch (error) {
-      console.error("Erro ao buscar detalhes:", error);
+      if (error instanceof NetworkError) {
+        setDetailsError(error.message);
+      } else {
+        setDetailsError("Erro desconhecido ao buscar detalhes.");
+      }
     } finally {
       setLoadingDetails(false);
     }
@@ -95,59 +132,83 @@ export function PokemonCard({ name, id }: PokemonCardProps) {
 
   return (
     <>
-
       <View className="flex-1 bg-white rounded-2xl p-3 m-1.5 shadow shadow-gray-300 items-center justify-center">
         <TouchableOpacity
           onPress={openModal}
           activeOpacity={0.85}
           className="flex items-center justify-center"
         >
-          <Image
-            source={{ uri: image ?? undefined }}
-            alt={name}
-            className="w-28 h-28 mb-2"
-            resizeMode="contain"
-          />
+          
+          {loading ? (
+            <ActivityIndicator size="large" color="#2F80ED" />
+          ) : imageError || !image ? (
+            <View className="w-28 h-28 mb-2 items-center justify-center">
+              <Text className="text-gray-400 text-center mb-1">
+                ❌ Falha ao carregar
+              </Text>
+
+              <TouchableOpacity
+                onPress={retryLoadImage}
+                className="bg-red-500 py-1 px-3 rounded-lg"
+              >
+                <Text className="text-white text-xs font-semibold">
+                  Tentar Novamente
+                </Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <Image
+              source={{ uri: image }}
+              className="w-28 h-28 mb-2"
+              resizeMode="contain"
+              onError={() => setImageError(true)}
+            />
+          )}
+
           <Text className="text-base font-semibold text-textdark capitalize">
             {name}
           </Text>
         </TouchableOpacity>
 
-
         <TouchableOpacity
-          onPress={() => {
+          onPress={() =>
             router.push({
               pathname: "/(tabs)/Detalhes/[name]",
-              params: { name: name },
+              params: { name },
             })
-          }}
-          className={`mt-4 px-3 py-1 rounded-lg text-sm`}
+          }
+          className="mt-4 px-3 py-1 rounded-lg text-sm"
           style={{ backgroundColor: "#ecc972" }}
         >
           <Text className="text-white font-semibold">Ver detalhes</Text>
         </TouchableOpacity>
       </View>
 
-
-
-      {/* MODAL */}
+      
       <Modal
         visible={modalVisible}
-        transparent
-        animationType="fade"
+        animationType="slide"
+        transparent={true}
         onRequestClose={() => setModalVisible(false)}
-
       >
-        <View className="flex-1 bg-black/50 justify-center items-center">
-          <View className="bg-white rounded-3xl w-[90%] max-h-[85%] p-5 shadow-lg">
-            <TouchableOpacity onPress={() => setModalVisible(false)}>
-              <Text className="text-red-500 font-semibold text-2xl ms-auto">X</Text>
-            </TouchableOpacity>
-            {loadingDetails ? (
-              <View className="flex-1 justify-center items-center">
+        <View className="flex-1 bg-black bg-opacity-60 justify-center items-center">
+          <View className="w-11/12 max-h-[85%] bg-white p-6 rounded-2xl shadow-xl">
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {loadingDetails ? (
                 <ActivityIndicator size="large" color="#2F80ED" />
-              </View>
-            ) : details ? (
+              ) : detailsError ? (
+                <View className="items-center">
+                  <Text className="text-red-500 mb-3 text-center">
+                    {detailsError}
+                  </Text>
+                  <TouchableOpacity
+                    onPress={openModal}
+                    className="bg-blue-500 py-2 px-4 rounded-lg"
+                  >
+                    <Text className="text-white font-bold">Tentar Novamente</Text>
+                  </TouchableOpacity>
+                </View>
+              ) :  details ? (
               <ScrollView showsVerticalScrollIndicator={false}>
                 <View className="items-center">
                   <Image
@@ -231,11 +292,9 @@ export function PokemonCard({ name, id }: PokemonCardProps) {
                   </View>
                 </View>
               </ScrollView>
-            ) : (
-              <Text className="text-gray-500 text-center">
-                Erro ao carregar dados.
-              </Text>
-            )}
+            ) : null}
+            </ScrollView>
+
           </View>
         </View>
       </Modal>
