@@ -7,17 +7,57 @@ import { getFromCache, saveToCache } from "../utils/cache";
 import { API_URL } from "@/api/index.routes"
 //biblioteca para detecta estado de conexão
 import NetInfo from "@react-native-community/netinfo";
+import PokemonTypeFilter from "@/components/PokemonTypeFilter";
+import fetchComConcorrencia from "../../utils/fetchComConcorrencia";
 
 export default function PokedexScreen() {
   const [pokemons, setPokemons] = useState<Pokemon[]>([]);
   const [offset, setOffset] = useState(0);
   const [loading, setLoading] = useState(false);
 
-  
+
   const [isOffline, setIsOffline] = useState(false);
+
+  const [filter, setFilter] = useState<string>("all");
+  const abortController = new AbortController();
+
+  const fetchPokemonsByType = async (type: string) => {
+    setLoading(true);
+
+    const key = `pokemon-type-${type}`;
+
+    try {
+      // tenta pegar do cache primeiro
+      const cached = await getFromCache(key);
+      if (cached) {
+        console.log("Dados de tipo vindos do cache");
+        setPokemons(cached);
+        setLoading(false);
+        return;
+      }
+
+      // busca da API
+      const response = await fetch(`${API_URL}/type/${type}`);
+      const data = await response.json();
+
+      const list = data.pokemon.map((p: any) => p.pokemon);
+
+      setPokemons(list);
+
+      await saveToCache(key, list);
+    } catch (err) {
+      console.log(err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const fetchPokemons = async () => {
     setLoading(true);
+
+    if (filter !== "all") {
+      return fetchPokemonsByType(filter);
+    }
 
     const key = `pokemon-list-${offset}`;// chave única por página, a chave ficará lá dentro do map no cache.ts
 
@@ -83,8 +123,18 @@ export default function PokedexScreen() {
     fetchPokemons();
   }, [offset]);
 
+  useEffect(() => {
+    if (filter === "all") {
+      setOffset(0);
+    }
+
+    fetchPokemons();
+
+  }, [filter]);
+
+
   return (
-    <View className="flex-1 bg-gray-200 px-3 pt-6">
+    <View className="flex-1 bg-gray-200 px-3 pt-4">
       {/* aviso do offline */}
       {isOffline && (
         <View className="absolute top-0 left-0 right-0 p-1 z-10 bg-black items-center">
@@ -93,6 +143,9 @@ export default function PokedexScreen() {
           </Text>
         </View>
       )}
+      <View className="pb-2">
+        <PokemonTypeFilter setFilter={setFilter} filter={filter} />
+      </View>
       {loading ? (
         <View className="flex-1 justify-center items-center">
           <ActivityIndicator size="large" color="#2F80ED" />
@@ -100,6 +153,7 @@ export default function PokedexScreen() {
       ) : (
         <>
           <FlatList
+          className="mt-2"
             data={pokemons}
             numColumns={2}
             keyExtractor={(item) => item.name}
