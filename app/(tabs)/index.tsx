@@ -23,6 +23,7 @@ export default function PokedexScreen() {
   const [isOffline, setIsOffline] = useState(false);
   // Novo estado para o erro
   const [fetchError, setFetchError] = useState<FetchError | null>(null);
+  const [filter, setFilter] = useState<string>("all");
 
   // Ref para o AbortController para cancelamento na desmontagem ou nova busca (debounce)
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -48,7 +49,7 @@ export default function PokedexScreen() {
       return Array.from(uniqueMap.values());
     });
   };
-  const fetchPokemons = async (forceRefetch: boolean = false) => {
+  const fetchPokemonsByType = async (type: string) => {
     // Se houver uma requisição anterior, cancele-a (para evitar race condition e liberar recursos)
     if (abortControllerRef.current) {
       abortControllerRef.current.abort("New request initiated (debounce/offset change)");
@@ -59,12 +60,9 @@ export default function PokedexScreen() {
     const controller = new AbortController();
     abortControllerRef.current = controller;
 
-  const [filter, setFilter] = useState<string>("all");
-  const abortController = new AbortController();
-
-  const fetchPokemonsByType = async (type: string) => {
     setLoading(true);
-
+    setFetchError(null); // Limpa o erro ao iniciar nova busca
+    const endpointType=`/type/${type}`
     const key = `pokemon-type-${type}`;
 
     try {
@@ -78,8 +76,8 @@ export default function PokedexScreen() {
       }
 
       // busca da API
-      const response = await fetch(`${API_URL}/type/${type}`);
-      const data = await response.json();
+      
+      const data = await robustFetch<any>(endpointType, controller.signal);
 
       const list = data.pokemon.map((p: any) => p.pokemon);
 
@@ -93,15 +91,22 @@ export default function PokedexScreen() {
     }
   };
 
-  const fetchPokemons = async () => {
-    setLoading(true);
-    setFetchError(null); // Limpa o erro ao iniciar nova busca
-
-    if (filter !== "all") {
-      return fetchPokemonsByType(filter);
+  const fetchPokemons = async (forceRefetch: boolean = false) => {
+      // Se houver uma requisição anterior, cancele-a (para evitar race condition e liberar recursos)
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort("New request initiated (debounce/offset change)");
+      abortControllerRef.current = null;
     }
 
-    const key = `pokemon-list-${offset}`;// chave única por página, a chave ficará lá dentro do map no cache.ts
+    // Cria um novo controller para esta nova requisição
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
+    setLoading(true);
+    setFetchError(null); // Limpa o erro ao iniciar nova busca
+      if (filter !== "all") {
+      return fetchPokemonsByType(filter);
+    }
     const key = `pokemon-list-${offset}`;
     const endpoint = `/pokemon?limit=20&offset=${offset}`;
 
@@ -167,7 +172,9 @@ export default function PokedexScreen() {
       setLoading(false);
     }
   };
+  
 
+  
   // Handler para o botão "Tentar Novamente"
   const handleRetry = () => {
     // Se a lista estiver vazia, tenta buscar a primeira página. 
@@ -248,12 +255,12 @@ export default function PokedexScreen() {
     return (
       
         <ErrorView />
-    
+      
     );
   }
 
   return (
-    <View className="flex-1 bg-gray-200 px-3 pt-4">
+    <View className="flex-1 bg-gray-200 px-3 pt-6">
       {/* aviso do offline */}
       {isOffline && (
         <View className="absolute top-0 left-0 right-0 p-1 z-10 bg-black items-center">
@@ -265,33 +272,56 @@ export default function PokedexScreen() {
       <View className="pb-2">
         <PokemonTypeFilter setFilter={setFilter} filter={filter} />
       </View>
-      {loading ? (
-        <View className="flex-1 justify-center items-center">
-          <ActivityIndicator size="large" color="#2F80ED" />
-        </View>
-      ) : (
-        <>
-          <FlatList
-          className="mt-2"
-            data={pokemons}
-            numColumns={2}
-            keyExtractor={(item) => item.name}
-            renderItem={({ item }) => {
-              const id = item?.url?.split("/").filter(Boolean).pop();
-              return <PokemonCard name={item.name} id={id || ''} />;
-            }}
-            onEndReached={() => setOffset((prev) => prev + 20)}
-            onEndReachedThreshold={0.2}
-            ListFooterComponent={
-              loading ? (
-                <View className="my-4 items-center">
-                  <ActivityIndicator size="large" color="#2F80ED" />
-                </View>
-              ) : null
-            }
-          />
-        </>
-      )}
+     
+      <FlatList
+        className="mt-2"
+        data={pokemons}
+        numColumns={2}
+        extraData={{ loading, fetchError }} // Adicionado para forçar re-render do footer
+          keyExtractor={(item) =>
+          item.url?.split("/").filter(Boolean).pop() || item.name
+        }
+
+        renderItem={({ item }) => {
+          const id = item?.url?.split("/").filter(Boolean).pop();
+          return <PokemonCard name={item.name} id={id || ''} />;
+        }}
+          onEndReached={() => {
+          // A paginação deve ser desativada ao filtrar por tipo, pois a lista de tipos é completa.
+          if (!loading && !fetchError && filter === "all") {
+            setOffset((prev) => prev + 20);
+          }
+        }}
+          onEndReachedThreshold={0.2}
+          ListFooterComponent={() => {    
+          if (loading && pokemons.length > 0) {
+            return (
+              <View className="my-4 items-center">
+                <ActivityIndicator size="large" color="#2F80ED" />
+              </View>
+            );
+          }
+          if (fetchError && pokemons.length > 0) {
+            return (
+              <View className="my-4 p-4 items-center border border-red-300 rounded-lg mx-2">
+                <Text className="text-sm font-bold text-red-600 mb-2">
+                  Falha ao carregar mais Pokémons.
+                </Text>
+                <TouchableOpacity
+                  onPress={handleRetry}
+                  className="bg-red-500 py-2 px-4 rounded-lg"
+                >
+                  <Text className="text-white text-sm font-bold">
+                    Tentar Novamente
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            );
+          }
+          // Adiciona um espaçamento no final da lista, se necessário
+          return <View style={{ height: 20 }} />; 
+        }}
+      />
     </View>
   );
 }
