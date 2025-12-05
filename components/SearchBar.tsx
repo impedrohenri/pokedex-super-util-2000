@@ -1,15 +1,17 @@
-import { useState } from "react";
-import { View, TextInput, TouchableOpacity, Text, ActivityIndicator } from "react-native";
 import { useRouter } from "expo-router";
+import { useEffect, useState } from "react";
+import { ActivityIndicator, Text, TextInput, TouchableOpacity, View } from "react-native";
 
 export default function SearchBar() {
   const [query, setQuery] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
-  const searchPokemon = async () => {
-    const name = query.trim().toLowerCase();
+
+  const searchPokemon = async (name: string) => {
+    name = name.trim().toLowerCase();
     if (!name) return;
 
     setLoading(true);
@@ -37,19 +39,36 @@ export default function SearchBar() {
     }
   };
 
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedQuery(query);
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [query]);
+
+  
+
+  useEffect(() => {
+    if (debouncedQuery.trim() !== "") {
+      searchPokemon(debouncedQuery);
+    }
+  }, [debouncedQuery]);
+
   return (
-    <View className="w-full px-3 mb-4">
+    <View className="w-full px-2 mb-4">
       <View className="flex-row items-center bg-white rounded-xl px-3 py-2 shadow">
         <TextInput
           value={query}
           onChangeText={setQuery}
           placeholder="Buscar Pokémon"
-          className="flex-1 text-base"
+          className="flex-1 text-black"
           autoCapitalize="none"
           autoCorrect={false}
         />
         <TouchableOpacity
-          onPress={searchPokemon}
+          onPress={() => searchPokemon(query)}
           className={`ml-2 px-3 py-1 rounded-lg ${
             loading ? "bg-gray-300" : "bg-red-500"
           }`}
@@ -61,7 +80,7 @@ export default function SearchBar() {
           )}
         </TouchableOpacity>
       </View>
-      {error && <Text className="text-red-500 mt-1 text-sm">{error}</Text>}
+      {error && <Text className="text-white mt-2 text-sm">{error}</Text>}
     </View>
   );
 }
