@@ -1,5 +1,4 @@
 import { PokemonCard } from "@/components/PokemonCard";
-import SearchBar from "@/components/SearchBar";
 import { Pokemon } from "@/types/PokemonCard";
 import { useEffect, useState, useRef } from "react";
 import { View, Text, FlatList, ActivityIndicator, TouchableOpacity, Button, Image } from "react-native";
@@ -7,14 +6,10 @@ import { getFromCache, saveToCache } from "../utils/cache";
 import { robustFetch, NetworkError } from "../utils/robustFetch";
 import NetInfo from "@react-native-community/netinfo";
 import PokemonTypeFilter from "@/components/PokemonTypeFilter";
-import fetchComConcorrencia from "../../utils/fetchComConcorrencia";
 import { IMAGE_URL } from "@/api/index.routes";
-// Interface para o objeto de erro
-interface FetchError {
-  message: string;
-  isNetwork: boolean; // Para diferenciar se é um erro de rede/servidor ou outro
-  canRetry: boolean; // Indica se o botão "Tentar Novamente" deve aparecer
-}
+import { FetchError } from "@/types/FetchError";
+import ErrorView from "@/components/ErrorView";
+
 
 export default function PokedexScreen() {
   const [pokemons, setPokemons] = useState<Pokemon[]>([]);
@@ -229,27 +224,6 @@ export default function PokedexScreen() {
   }, [filter]);
 
 
-  // Componente de erro para reutilização
-  const ErrorView = () => (
-    <View className="flex-1 justify-center items-center p-6">
-      <Text className="text-xl font-bold text-red-600 mb-4">
-        🚨 Erro de Rede
-      </Text>
-      <Text className="text-center text-gray-700 mb-6">
-        {fetchError?.message}
-      </Text>
-      {fetchError?.canRetry && (
-        <TouchableOpacity
-          onPress={handleRetry}
-          className=" bg-red-500 py-3 px-6 rounded-lg"
-        >
-          <Text className="text-white text-base font-bold">
-            Tentar Novamente
-          </Text>
-        </TouchableOpacity>
-      )}
-    </View>
-  );
 
   // --- Renderização ---
 
@@ -265,7 +239,7 @@ export default function PokedexScreen() {
     // Exibe o erro de tela cheia se a lista estiver vazia
     return (
 
-      <ErrorView />
+      <ErrorView fetchError={fetchError} handleRetry={handleRetry}/>
 
     );
   }
