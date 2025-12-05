@@ -297,7 +297,7 @@ export default function PokedexScreen() {
           if (loading && pokemons.length > 0) {
             return (
               <View className="my-4 items-center">
-                <ActivityIndicator size="large" color="#2F80ED" />
+                <ActivityIndicator size="large" color="#FF0000" />
               </View>
             );
           }

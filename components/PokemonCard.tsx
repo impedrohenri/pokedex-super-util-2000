@@ -140,7 +140,7 @@ export function PokemonCard({ name, id }: PokemonCardProps) {
         >
           
           {loading ? (
-            <ActivityIndicator size="large" color="#2F80ED" />
+            <ActivityIndicator size="large" color="#FF0000" />
           ) : imageError || !image ? (
             <View className="w-28 h-28 mb-2 items-center justify-center">
               <Text className="text-gray-400 text-center mb-1">
