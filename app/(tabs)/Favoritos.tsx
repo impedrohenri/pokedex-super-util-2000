@@ -75,15 +75,8 @@ export default function FavoritosScreen() {
         keyExtractor={(item) => item.id.toString()}
         renderItem={({ item }) => {
           return (
-            <View className="relative">
-              <PokemonCard name={item.name} id={item.id.toString()} />
-              <Text
-                onPress={() => removeFavorite(item.id)}
-                className="absolute top-2 right-2 bg-red-600 text-white px-2 py-1 rounded-full"
-              >
-                X
-              </Text>
-            </View>
+              <PokemonCard name={item.name} id={item.id.toString()} onRemove={() => removeFavorite(item.id)}/>
+
           );
         }}
       />

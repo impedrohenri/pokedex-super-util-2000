@@ -12,15 +12,18 @@ import {
 
 import { getFromCache, saveToCache } from "../app/utils/cache";
 import { robustFetch, NetworkError } from "../app/utils/robustFetch";
+import { Skeleton } from "./ui/skeleton";
+import { FontAwesome } from "@expo/vector-icons";
 
 type PokemonCardProps = {
   name: string;
   id: string;
+  onRemove?: () => {}
 };
 
 const POKEAPI_ENDPOINT = "/pokemon/";
 
-export function PokemonCard({ name, id }: PokemonCardProps) {
+export function PokemonCard({ name, id, onRemove }: PokemonCardProps) {
   const [image, setImage] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [imageError, setImageError] = useState(false);
@@ -133,14 +136,16 @@ export function PokemonCard({ name, id }: PokemonCardProps) {
   return (
     <>
       <View className="flex-1 bg-white rounded-2xl p-3 m-1.5 shadow shadow-gray-300 items-center justify-center">
+        {!!onRemove && <FontAwesome name="times" onPress={onRemove}
+                className="absolute top-2 right-2 bg-red-600 text-white px-2 py-1 rounded-full"/>}
         <TouchableOpacity
           onPress={openModal}
           activeOpacity={0.85}
-          className="flex items-center justify-center"
+          className={`lex items-center justify-center ${loading && "w-[70%]"}`}
         >
           
           {loading ? (
-            <ActivityIndicator size="large" color="#FF0000" />
+            <Skeleton variant="rounded" startColor="bg-background-700" className="h-[100px] w-full" />
           ) : imageError || !image ? (
             <View className="w-28 h-28 mb-2 items-center justify-center">
               <Text className="text-gray-400 text-center mb-1">
