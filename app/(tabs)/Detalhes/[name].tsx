@@ -5,45 +5,86 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { FontAwesome } from '@expo/vector-icons';
 
 import { getFromCache, saveToCache } from "../../utils/cache";
+import { API_URL } from "@/api/index.routes";
+import { robustFetch } from "@/app/utils/robustFetch";
 
+import { ActivityIndicator } from "react-native";
+
+import NetInfo from "@react-native-community/netinfo"; 
 
 export default function DetalhePokemon() {
   const { name } = useLocalSearchParams<{ name: string }>();
   const [details, setDetails] = useState<any>(null);
   const [isFavorite, setIsFavorite] = useState(false);
 
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+
+
+  const key = `pokemon-details-${name}`;
+  const controller = new AbortController();
+
+  const loadDetails = async () => {
+    setLoading(true);
+    setError(null);
+
+    const cached = await getFromCache(key);
+ 
+    if (cached) {
+      console.log("Dados vindo do cache");
+      setDetails(cached);
+      setLoading(false);
+      
+      const net = await NetInfo.fetch();
+      if (!net.isConnected) {
+        console.log("Não foi possivel atualizar em background");
+        return;
+      }
+
+      try {
+        const data = await robustFetch(`/pokemon/${name}`, controller.signal);
+        await saveToCache(key, data);
+        setDetails(data);
+        console.log("Atualizando em background");
+      } catch {
+        console.log("Falha na atualização → mantendo cache");
+      }
+
+      return;
+    }
+
+    try {
+      const data = await robustFetch(`/pokemon/${name}`, controller.signal);
+      await saveToCache(key, data);
+      setDetails(data);
+      console.log("Dados vindo da API")
+      return;
+    } catch (err: any) {
+
+      if (err.message === "retry-exceeded") {
+        setError("Falha ao carregar. Deseja tentar novamente?");
+      } else {
+        setError("Erro ao carregar Pokémon.");
+      }
+
+      setDetails(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+
+
   useEffect(() => {
     if (!name) return;
-    const key = `pokemon-details-${name}`;
-
-    const loadDetails = async () => {
-
-      const cached = await getFromCache(key);
-
-      if (cached) {
-        console.log("Detalhes do cache");
-        setDetails(cached);
-
-        
-        fetch(`https://pokeapi.co/api/v2/pokemon/${name}`)
-          .then(res => res.json())
-          .then((data) => saveToCache(key, data));
-
-        return; 
-      }
-    
 
 
-    fetch(`https://pokeapi.co/api/v2/pokemon/${name}`)
-      .then(res => res.json())
-      .then(async (data) => {
-        console.log("Detalhes da API");
-        setDetails(data);
-        await saveToCache(key, data);
-      })
-      .catch(console.error);
-    }
     loadDetails();
+
+    // Cancelar se navegar rápido entre Pokémon
+    return () => controller.abort();
+
   }, [name]);
 
   useEffect(() => {
@@ -85,13 +126,36 @@ export default function DetalhePokemon() {
     }
   };
 
-  if (!details) {
+
+  if (loading) {
     return (
       <View className="flex-1 justify-center items-center bg-background-light">
-        <Text className="text-gray-500">Pokémon não encontrado.</Text>
+        <ActivityIndicator size="large" color="#FF0000" />
       </View>
     );
   }
+
+  if (!details) {
+    return (
+      <View className="flex-1 justify-center items-center bg-background-light px-4">
+        <View className="w-full p-4 items-center border border-red-300 rounded-lg bg-white shadow">
+          <Text className="text-sm font-bold text-red-600 mb-2">
+            Falha ao carregar os detalhes do Pokémon.
+          </Text>
+
+          <TouchableOpacity
+            onPress={loadDetails}
+            className="bg-red-500 py-2 px-4 rounded-lg"
+          >
+            <Text className="text-white text-sm font-bold">
+              Tentar Novamente
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
+
 
   return (
     <ScrollView className="flex-1 bg-background-light p-4">

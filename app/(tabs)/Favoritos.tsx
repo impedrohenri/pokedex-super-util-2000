@@ -1,5 +1,5 @@
 import { View, Text, FlatList, ActivityIndicator } from "react-native";
-import { useState,useCallback } from "react";
+import { useState, useCallback } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { PokemonCard } from "@/components/PokemonCard";
 import { Pokemon } from "@/types/PokemonCard";
@@ -24,8 +24,22 @@ export default function FavoritosScreen() {
       setLoading(false);
     }
   };
+  const removeFavorite = async (id: number) => {
+    try {
+      const favorites = await AsyncStorage.getItem("favorites");
+      let parsed = favorites ? JSON.parse(favorites) : [];
 
- //Toda vez que a tela ganhar foco → recarrega
+      // Remove pelo id
+      parsed = parsed.filter((p: any) => p.id !== id);
+
+      await AsyncStorage.setItem("favorites", JSON.stringify(parsed));
+      setPokemons(parsed); // Atualiza a tela imediatamente
+    } catch (error) {
+      console.error("Erro ao remover favorito:", error);
+    }
+  };
+
+  //Toda vez que a tela ganhar foco → recarrega
   useFocusEffect(
     useCallback(() => {
       loadFavorites();
@@ -55,9 +69,15 @@ export default function FavoritosScreen() {
       <FlatList
         data={pokemons}
         numColumns={2}
+        columnWrapperStyle={{
+          justifyContent: "space-between",
+        }}
         keyExtractor={(item) => item.id.toString()}
         renderItem={({ item }) => {
-          return <PokemonCard name={item.name} id={item.id.toString()} />;
+          return (
+              <PokemonCard name={item.name} id={item.id.toString()} onRemove={() => removeFavorite(item.id)}/>
+
+          );
         }}
       />
     </View>
