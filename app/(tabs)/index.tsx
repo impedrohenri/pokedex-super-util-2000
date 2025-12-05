@@ -62,7 +62,7 @@ export default function PokedexScreen() {
 
     setLoading(true);
     setFetchError(null); // Limpa o erro ao iniciar nova busca
-    const endpointType=`/type/${type}`
+    const endpointType = `/type/${type}`
     const key = `pokemon-type-${type}`;
 
     try {
@@ -76,7 +76,7 @@ export default function PokedexScreen() {
       }
 
       // busca da API
-      
+
       const data = await robustFetch<any>(endpointType, controller.signal);
 
       const list = data.pokemon.map((p: any) => p.pokemon);
@@ -84,15 +84,26 @@ export default function PokedexScreen() {
       setPokemons(list);
 
       await saveToCache(key, list);
-    } catch (err) {
-      console.log(err);
+    } catch (err: any) {
+      console.log("Erro ao buscar Pokémon por tipo:", err);
+
+      setFetchError({
+        message: "Não foi possível carregar os Pokémons desse tipo.",
+        isNetwork:
+          err instanceof NetworkError ||
+          (typeof err?.message === "string" &&
+            err.message.includes("Failed to fetch")),
+        canRetry: true,
+      });
+
+      setPokemons([]); // Garante que a tela de erro apareça
     } finally {
       setLoading(false);
     }
   };
 
   const fetchPokemons = async (forceRefetch: boolean = false) => {
-      // Se houver uma requisição anterior, cancele-a (para evitar race condition e liberar recursos)
+    // Se houver uma requisição anterior, cancele-a (para evitar race condition e liberar recursos)
     if (abortControllerRef.current) {
       abortControllerRef.current.abort("New request initiated (debounce/offset change)");
       abortControllerRef.current = null;
@@ -104,7 +115,7 @@ export default function PokedexScreen() {
 
     setLoading(true);
     setFetchError(null); // Limpa o erro ao iniciar nova busca
-      if (filter !== "all") {
+    if (filter !== "all") {
       return fetchPokemonsByType(filter);
     }
     const key = `pokemon-list-${offset}`;
@@ -172,9 +183,9 @@ export default function PokedexScreen() {
       setLoading(false);
     }
   };
-  
 
-  
+
+
   // Handler para o botão "Tentar Novamente"
   const handleRetry = () => {
     // Se a lista estiver vazia, tenta buscar a primeira página. 
@@ -230,7 +241,7 @@ export default function PokedexScreen() {
       {fetchError?.canRetry && (
         <TouchableOpacity
           onPress={handleRetry}
-          className="bg-blue-500 py-3 px-6 rounded-lg"
+          className=" bg-red-500 py-3 px-6 rounded-lg"
         >
           <Text className="text-white text-base font-bold">
             Tentar Novamente
@@ -245,7 +256,7 @@ export default function PokedexScreen() {
   if (loading && pokemons.length === 0) {
     return (
       <View className="flex-1 justify-center items-center bg-gray-200">
-        <ActivityIndicator size="large" color="#2F80ED" />
+        <ActivityIndicator size="large" color="#FF0000" />
       </View>
     );
   }
@@ -253,9 +264,9 @@ export default function PokedexScreen() {
   if (fetchError && pokemons.length === 0) {
     // Exibe o erro de tela cheia se a lista estiver vazia
     return (
-      
-        <ErrorView />
-      
+
+      <ErrorView />
+
     );
   }
 
@@ -272,13 +283,13 @@ export default function PokedexScreen() {
       <View className="pb-2">
         <PokemonTypeFilter setFilter={setFilter} filter={filter} />
       </View>
-     
+
       <FlatList
         className="mt-2"
         data={pokemons}
         numColumns={2}
         extraData={{ loading, fetchError }} // Adicionado para forçar re-render do footer
-          keyExtractor={(item) =>
+        keyExtractor={(item) =>
           item.url?.split("/").filter(Boolean).pop() || item.name
         }
 
@@ -286,14 +297,14 @@ export default function PokedexScreen() {
           const id = item?.url?.split("/").filter(Boolean).pop();
           return <PokemonCard name={item.name} id={id || ''} />;
         }}
-          onEndReached={() => {
+        onEndReached={() => {
           // A paginação deve ser desativada ao filtrar por tipo, pois a lista de tipos é completa.
           if (!loading && !fetchError && filter === "all") {
             setOffset((prev) => prev + 20);
           }
         }}
-          onEndReachedThreshold={0.2}
-          ListFooterComponent={() => {    
+        onEndReachedThreshold={0.2}
+        ListFooterComponent={() => {
           if (loading && pokemons.length > 0) {
             return (
               <View className="my-4 items-center">
@@ -309,7 +320,7 @@ export default function PokedexScreen() {
                 </Text>
                 <TouchableOpacity
                   onPress={handleRetry}
-                  className="bg-red-500 py-2 px-4 rounded-lg"
+                  className="bg-red-600 py-2 px-4 rounded-lg"
                 >
                   <Text className="text-white text-sm font-bold">
                     Tentar Novamente
@@ -319,7 +330,7 @@ export default function PokedexScreen() {
             );
           }
           // Adiciona um espaçamento no final da lista, se necessário
-          return <View style={{ height: 20 }} />; 
+          return <View style={{ height: 20 }} />;
         }}
       />
     </View>

@@ -58,6 +58,7 @@ export default function DetalhePokemon() {
       const data = await robustFetch(`/pokemon/${name}`, controller.signal);
       await saveToCache(key, data);
       setDetails(data);
+      console.log("Dados vindo da API")
       return;
     } catch (err: any) {
 
