@@ -1,7 +1,8 @@
 import { PokemonCard } from "@/components/PokemonCard";
 import { Pokemon } from "@/types/PokemonCard";
 import { useEffect, useState, useRef } from "react";
-import { View, Text, FlatList, ActivityIndicator, TouchableOpacity, Button, Image } from "react-native";
+import { View, Text, FlatList, ActivityIndicator, TouchableOpacity, Image } from "react-native";
+import fetchComConcorrencia from "../../utils/fetchComConcorrencia";
 import { getFromCache, saveToCache } from "../utils/cache";
 import { robustFetch, NetworkError } from "../utils/robustFetch";
 import NetInfo from "@react-native-community/netinfo";
@@ -149,8 +150,9 @@ export default function PokedexScreen() {
 
       updatePokemonsState(data.results, offset);
       await saveToCache(key, data.results); // Salva no cache agora
-      Promise.allSettled(
-        data.results.map((p: any) => Image.prefetch(getImageUrl(p)))
+      fetchComConcorrencia(
+        data.results.map((p: any) => Image.prefetch(getImageUrl(p))),
+        5
       );
     } catch (error: any) {
       // Tratamento de erros com UI de “tentar novamente”
