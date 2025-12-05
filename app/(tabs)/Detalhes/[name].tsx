@@ -10,6 +10,8 @@ import { robustFetch } from "@/app/utils/robustFetch";
 
 import { ActivityIndicator } from "react-native";
 
+import NetInfo from "@react-native-community/netinfo"; 
+
 export default function DetalhePokemon() {
   const { name } = useLocalSearchParams<{ name: string }>();
   const [details, setDetails] = useState<any>(null);
@@ -18,52 +20,65 @@ export default function DetalhePokemon() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  
+
 
   const key = `pokemon-details-${name}`;
-    const controller = new AbortController();
+  const controller = new AbortController();
 
-    const loadDetails = async () => {
-      setLoading(true);
-      setError(null);
+  const loadDetails = async () => {
+    setLoading(true);
+    setError(null);
 
-      const cached = await getFromCache(key);
+    const cached = await getFromCache(key);
+ 
+    if (cached) {
+      console.log("Dados vindo do cache");
+      setDetails(cached);
+      setLoading(false);
+      
+      const net = await NetInfo.fetch();
+      if (!net.isConnected) {
+        console.log("Não foi possivel atualizar em background");
+        return;
+      }
 
       try {
         const data = await robustFetch(`/pokemon/${name}`, controller.signal);
         await saveToCache(key, data);
         setDetails(data);
-        return;
-      } catch (err: any) {
-
-        console.log("API falhou → usando cache");
-
-        // Se tiver cache, usa mesmo assim
-        if (cached) {
-          setDetails(cached);
-          setLoading(false);
-          return;
-        }
-
-        // Quando o robustFetch excede o limite de tentativas:
-        if (err.message === "retry-exceeded") {
-          setError("Falha ao carregar. Deseja tentar novamente?");
-        } else {
-          setError("Erro ao carregar Pokémon.");
-        }
-
-        setDetails(null);
-      } finally {
-        setLoading(false);
+        console.log("Atualizando em background");
+      } catch {
+        console.log("Falha na atualização → mantendo cache");
       }
-    };
+
+      return;
+    }
+
+    try {
+      const data = await robustFetch(`/pokemon/${name}`, controller.signal);
+      await saveToCache(key, data);
+      setDetails(data);
+      return;
+    } catch (err: any) {
+
+      if (err.message === "retry-exceeded") {
+        setError("Falha ao carregar. Deseja tentar novamente?");
+      } else {
+        setError("Erro ao carregar Pokémon.");
+      }
+
+      setDetails(null);
+    } finally {
+      setLoading(false);
+    }
+  };
 
 
 
   useEffect(() => {
     if (!name) return;
 
-    
+
     loadDetails();
 
     // Cancelar se navegar rápido entre Pokémon
@@ -110,13 +125,7 @@ export default function DetalhePokemon() {
     }
   };
 
-  // if (!details) {
-  //   return (
-  //     <View className="flex-1 justify-center items-center bg-background-light">
-  //       <Text className="text-gray-500">Pokémon não encontrado.</Text>
-  //     </View>
-  //   );
-  // }
+
   if (loading) {
     return (
       <View className="flex-1 justify-center items-center bg-background-light">
@@ -125,26 +134,26 @@ export default function DetalhePokemon() {
     );
   }
 
-if (!details) {
-  return (
-    <View className="flex-1 justify-center items-center bg-background-light px-4">
-      <View className="w-full p-4 items-center border border-red-300 rounded-lg bg-white shadow">
-        <Text className="text-sm font-bold text-red-600 mb-2">
-          Falha ao carregar os detalhes do Pokémon.
-        </Text>
-
-        <TouchableOpacity
-          onPress={loadDetails}
-          className="bg-red-500 py-2 px-4 rounded-lg"
-        >
-          <Text className="text-white text-sm font-bold">
-            Tentar Novamente
+  if (!details) {
+    return (
+      <View className="flex-1 justify-center items-center bg-background-light px-4">
+        <View className="w-full p-4 items-center border border-red-300 rounded-lg bg-white shadow">
+          <Text className="text-sm font-bold text-red-600 mb-2">
+            Falha ao carregar os detalhes do Pokémon.
           </Text>
-        </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={loadDetails}
+            className="bg-red-500 py-2 px-4 rounded-lg"
+          >
+            <Text className="text-white text-sm font-bold">
+              Tentar Novamente
+            </Text>
+          </TouchableOpacity>
+        </View>
       </View>
-    </View>
-  );
-}
+    );
+  }
 
 
   return (
