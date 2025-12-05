@@ -195,7 +195,7 @@ export function PokemonCard({ name, id }: PokemonCardProps) {
           <View className="w-11/12 max-h-[85%] bg-white p-6 rounded-2xl shadow-xl">
             <ScrollView showsVerticalScrollIndicator={false}>
               {loadingDetails ? (
-                <ActivityIndicator size="large" color="#2F80ED" />
+                <ActivityIndicator size="large" color="#FF0000" />
               ) : detailsError ? (
                 <View className="items-center">
                   <Text className="text-red-500 mb-3 text-center">
@@ -287,7 +287,7 @@ export function PokemonCard({ name, id }: PokemonCardProps) {
                       className="mt-6 bg-primary px-5 py-2 rounded-xl"
                       onPress={() => setModalVisible(false)}
                     >
-                      <Text className="text-white font-semibold">Fechar</Text>
+                      <Text className="text-red-600 font-semibold">Fechar</Text>
                     </TouchableOpacity>
                   </View>
                 </View>
